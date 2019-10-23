@@ -7,4 +7,3 @@ type Logger interface {
 	Printf(format string, args ...interface{})
 	Output(calldepth int, s string) error
 }
-

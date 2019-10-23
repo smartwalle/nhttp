@@ -1,4 +1,3 @@
-
 // HTTP reverse proxy handler, copy from golang standard library net/http/httputil
 
 package http4go
@@ -9,16 +8,61 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
 )
 
-// ReverseProxy is an HTTP Handler that takes an incoming request and
+type ReverseProxy struct {
+	BufferPool   BufferPool
+	ErrorLog     Logger
+	ErrorHandler func(http.ResponseWriter, *http.Request, error)
+}
+
+func NewReverseProxy(bufferPool BufferPool) *ReverseProxy {
+	if bufferPool == nil {
+		bufferPool = NewBufferPool(1024)
+	}
+	var m = &ReverseProxy{}
+	m.BufferPool = bufferPool
+	return m
+}
+
+func (this *ReverseProxy) ProxyWithDirector(director func(*http.Request)) *Proxy {
+	var p = &Proxy{}
+	p.Director = director
+	p.BufferPool = this.BufferPool
+	p.ErrorLog = this.ErrorLog
+	p.ErrorHandler = this.ErrorHandler
+	return p
+}
+
+func (this *ReverseProxy) ProxyWithURL(target *url.URL) *Proxy {
+	targetQuery := target.RawQuery
+	director := func(req *http.Request) {
+		req.URL.Scheme = target.Scheme
+		req.URL.Host = target.Host
+		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+		if targetQuery == "" || req.URL.RawQuery == "" {
+			req.URL.RawQuery = targetQuery + req.URL.RawQuery
+		} else {
+			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
+		}
+
+		//if _, ok := req.Header["User-Agent"]; !ok {
+		//	// explicitly disable User-Agent so it's not set to default value
+		//	req.Header.Set("User-Agent", "")
+		//}
+	}
+	return this.ProxyWithDirector(director)
+}
+
+// Proxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
 // client.
-type ReverseProxy struct {
+type Proxy struct {
 	// Director must be a function which modifies
 	// the request into a new request to be sent
 	// using Transport. Its response is then copied
@@ -37,7 +81,7 @@ type ReverseProxy struct {
 	// If zero, no periodic flushing is done.
 	// A negative value means to flush immediately
 	// after each write to the client.
-	// The FlushInterval is ignored when ReverseProxy
+	// The FlushInterval is ignored when Proxy
 	// recognizes a response as a streaming response;
 	// for such responses, writes are flushed to the client
 	// immediately.
@@ -72,12 +116,6 @@ type ReverseProxy struct {
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 }
 
-func NewReverseProxy(bufferPool BufferPool) *ReverseProxy {
-	var rp = &ReverseProxy{}
-	rp.BufferPool = bufferPool
-	return rp
-}
-
 func copyHeader(dst, src http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
@@ -103,12 +141,12 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
-func (p *ReverseProxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
+func (p *Proxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
 	p.logf("http4go: proxy error: %v", err)
 	rw.WriteHeader(http.StatusBadGateway)
 }
 
-func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
+func (p *Proxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
 	if p.ErrorHandler != nil {
 		return p.ErrorHandler
 	}
@@ -117,7 +155,7 @@ func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request
 
 // modifyResponse conditionally runs the optional ModifyResponse hook
 // and reports whether the request should proceed.
-func (p *ReverseProxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req *http.Request) bool {
+func (p *Proxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req *http.Request) bool {
 	if p.ModifyResponse == nil {
 		return true
 	}
@@ -129,7 +167,7 @@ func (p *ReverseProxy) modifyResponse(rw http.ResponseWriter, res *http.Response
 	return true
 }
 
-func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
 		transport = http.DefaultTransport
@@ -245,7 +283,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
-		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
+		// is abort the request. Issue 23643: Proxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req) {
 			p.logf("http4go: suppressing panic for copyResponse error in test; copy error: %v", err)
@@ -313,7 +351,7 @@ func removeConnectionHeaders(h http.Header) {
 
 // flushInterval returns the p.FlushInterval value, conditionally
 // overriding its value for a specific request/response.
-func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time.Duration {
+func (p *Proxy) flushInterval(req *http.Request, res *http.Response) time.Duration {
 	resCT := res.Header.Get("Content-Type")
 
 	// For Server-Sent Events responses, flush immediately.
@@ -326,7 +364,7 @@ func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time
 	return p.FlushInterval
 }
 
-func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader, flushInterval time.Duration) error {
+func (p *Proxy) copyResponse(dst io.Writer, src io.Reader, flushInterval time.Duration) error {
 	if flushInterval != 0 {
 		if wf, ok := dst.(writeFlusher); ok {
 			mlw := &maxLatencyWriter{
@@ -354,7 +392,7 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader, flushInterval 
 
 // copyBuffer returns any write errors or non-EOF read errors, and the amount
 // of bytes written.
-func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
+func (p *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
 	if len(buf) == 0 {
 		buf = make([]byte, 32*1024)
 	}
@@ -362,7 +400,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			p.logf("http4go: ReverseProxy read error during body copy: %v", rerr)
+			p.logf("http4go: Proxy read error during body copy: %v", rerr)
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])
@@ -385,7 +423,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	}
 }
 
-func (p *ReverseProxy) logf(format string, args ...interface{}) {
+func (p *Proxy) logf(format string, args ...interface{}) {
 	if p.ErrorLog != nil {
 		p.ErrorLog.Printf(format, args...)
 	}
@@ -510,8 +548,7 @@ func tokenEqual(t1, t2 string) bool {
 	return true
 }
 
-
-func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
+func (p *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
 	reqUpType := upgradeType(req.Header)
 	resUpType := upgradeType(res.Header)
 	if reqUpType != resUpType {
@@ -571,3 +608,14 @@ func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 	errc <- err
 }
 
+func singleJoiningSlash(a, b string) string {
+	aslash := strings.HasSuffix(a, "/")
+	bslash := strings.HasPrefix(b, "/")
+	switch {
+	case aslash && bslash:
+		return a + b[1:]
+	case !aslash && !bslash:
+		return a + "/" + b
+	}
+	return a + b
+}
