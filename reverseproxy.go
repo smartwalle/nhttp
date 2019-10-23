@@ -1,4 +1,4 @@
-// HTTP reverse proxy handler, copy from golang standard library net/http/httputil
+// HTTP reverse proxy handler, copy from net/http/httputil
 
 package http4go
 
@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 )
 
 type ReverseProxy struct {
@@ -489,65 +488,6 @@ func upgradeType(h http.Header) string {
 	return strings.ToLower(h.Get("Upgrade"))
 }
 
-func HeaderValuesContainsToken(values []string, token string) bool {
-	for _, v := range values {
-		if headerValueContainsToken(v, token) {
-			return true
-		}
-	}
-	return false
-}
-
-func headerValueContainsToken(v string, token string) bool {
-	v = trimOWS(v)
-	if comma := strings.IndexByte(v, ','); comma != -1 {
-		return tokenEqual(trimOWS(v[:comma]), token) || headerValueContainsToken(v[comma+1:], token)
-	}
-	return tokenEqual(v, token)
-}
-
-func isOWS(b byte) bool { return b == ' ' || b == '\t' }
-
-// trimOWS returns x with all optional whitespace removes from the
-// beginning and end.
-func trimOWS(x string) string {
-	// TODO: consider using strings.Trim(x, " \t") instead,
-	// if and when it's fast enough. See issue 10292.
-	// But this ASCII-only code will probably always beat UTF-8
-	// aware code.
-	for len(x) > 0 && isOWS(x[0]) {
-		x = x[1:]
-	}
-	for len(x) > 0 && isOWS(x[len(x)-1]) {
-		x = x[:len(x)-1]
-	}
-	return x
-}
-
-func lowerASCII(b byte) byte {
-	if 'A' <= b && b <= 'Z' {
-		return b + ('a' - 'A')
-	}
-	return b
-}
-
-// tokenEqual reports whether t1 and t2 are equal, ASCII case-insensitively.
-func tokenEqual(t1, t2 string) bool {
-	if len(t1) != len(t2) {
-		return false
-	}
-	for i, b := range t1 {
-		if b >= utf8.RuneSelf {
-			// No UTF-8 or non-ASCII allowed in tokens.
-			return false
-		}
-		if lowerASCII(byte(b)) != lowerASCII(t2[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 func (p *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
 	reqUpType := upgradeType(req.Header)
 	resUpType := upgradeType(res.Header)
@@ -606,16 +546,4 @@ func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 	_, err := io.Copy(c.backend, c.user)
 	errc <- err
-}
-
-func singleJoiningSlash(a, b string) string {
-	aslash := strings.HasSuffix(a, "/")
-	bslash := strings.HasPrefix(b, "/")
-	switch {
-	case aslash && bslash:
-		return a + b[1:]
-	case !aslash && !bslash:
-		return a + "/" + b
-	}
-	return a + b
 }
