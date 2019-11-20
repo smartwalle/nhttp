@@ -141,7 +141,7 @@ var hopHeaders = []string{
 }
 
 func (p *Proxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
-	p.logf("http4go: proxy error: %v", err)
+	p.logf("http4go: proxy error: %v \n", err)
 	rw.WriteHeader(http.StatusBadGateway)
 }
 
@@ -285,7 +285,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// is abort the request. Issue 23643: Proxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req) {
-			p.logf("http4go: suppressing panic for copyResponse error in test; copy error: %v", err)
+			p.logf("http4go: suppressing panic for copyResponse error in test; copy error: %v \n", err)
 			return
 		}
 		panic(http.ErrAbortHandler)
@@ -399,7 +399,7 @@ func (p *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, err
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			p.logf("http4go: Proxy read error during body copy: %v", rerr)
+			p.logf("http4go: Proxy read error during body copy: %v \n", rerr)
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])
