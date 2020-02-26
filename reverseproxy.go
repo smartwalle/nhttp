@@ -16,7 +16,6 @@ import (
 
 type ReverseProxy struct {
 	BufferPool   BufferPool
-	ErrorLog     Logger
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 }
 
@@ -33,7 +32,6 @@ func (this *ReverseProxy) ProxyWithDirector(director func(*http.Request)) *Proxy
 	var p = &Proxy{}
 	p.Director = director
 	p.BufferPool = this.BufferPool
-	p.ErrorLog = this.ErrorLog
 	p.ErrorHandler = this.ErrorHandler
 	return p
 }
@@ -89,7 +87,7 @@ type Proxy struct {
 	// ErrorLog specifies an optional logger for errors
 	// that occur when attempting to proxy the request.
 	// If nil, logging is done via the log package's standard logger.
-	ErrorLog Logger
+	//ErrorLog Logger
 
 	// BufferPool optionally specifies a buffer pool to
 	// get byte slices for use by io.CopyBuffer when
@@ -141,15 +139,16 @@ var hopHeaders = []string{
 }
 
 func (p *Proxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
-	p.logf("http4go: proxy error: %v \n", err)
 	rw.WriteHeader(http.StatusBadGateway)
 }
 
-func (p *Proxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
-	if p.ErrorHandler != nil {
-		return p.ErrorHandler
+func (p *Proxy) getErrorHandler(w http.ResponseWriter, req *http.Request, err error) {
+	logger.Output(2, fmt.Sprintf("http4go: proxy error: %v \n", err))
+	var h = p.ErrorHandler
+	if h == nil {
+		h = p.defaultErrorHandler
 	}
-	return p.defaultErrorHandler
+	h(w, req, err)
 }
 
 // modifyResponse conditionally runs the optional ModifyResponse hook
@@ -160,7 +159,7 @@ func (p *Proxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req *
 	}
 	if err := p.ModifyResponse(res); err != nil {
 		res.Body.Close()
-		p.getErrorHandler()(rw, req, err)
+		p.getErrorHandler(rw, req, err)
 		return false
 	}
 	return true
@@ -240,7 +239,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	res, err := transport.RoundTrip(outreq)
 	if err != nil {
-		p.getErrorHandler()(rw, outreq, err)
+		p.getErrorHandler(rw, outreq, err)
 		return
 	}
 
@@ -285,7 +284,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// is abort the request. Issue 23643: Proxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req) {
-			p.logf("http4go: suppressing panic for copyResponse error in test; copy error: %v \n", err)
+			logger.Printf("http4go: suppressing panic for copyResponse error in test; copy error: %v \n", err)
 			return
 		}
 		panic(http.ErrAbortHandler)
@@ -399,7 +398,7 @@ func (p *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, err
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			p.logf("http4go: Proxy read error during body copy: %v \n", rerr)
+			logger.Printf("http4go: Proxy read error during body copy: %v \n", rerr)
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])
@@ -422,11 +421,9 @@ func (p *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, err
 	}
 }
 
-func (p *Proxy) logf(format string, args ...interface{}) {
-	if p.ErrorLog != nil {
-		p.ErrorLog.Printf(format, args...)
-	}
-}
+//func (p *Proxy) logf(format string, args ...interface{}) {
+//	logger.Printf(format, args...)
+//}
 
 type writeFlusher interface {
 	io.Writer
@@ -492,7 +489,7 @@ func (p *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request,
 	reqUpType := upgradeType(req.Header)
 	resUpType := upgradeType(res.Header)
 	if reqUpType != resUpType {
-		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
+		p.getErrorHandler(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
 		return
 	}
 
@@ -500,28 +497,28 @@ func (p *Proxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request,
 
 	hj, ok := rw.(http.Hijacker)
 	if !ok {
-		p.getErrorHandler()(rw, req, fmt.Errorf("can't switch protocols using non-Hijacker ResponseWriter type %T", rw))
+		p.getErrorHandler(rw, req, fmt.Errorf("can't switch protocols using non-Hijacker ResponseWriter type %T", rw))
 		return
 	}
 	backConn, ok := res.Body.(io.ReadWriteCloser)
 	if !ok {
-		p.getErrorHandler()(rw, req, fmt.Errorf("internal error: 101 switching protocols response with non-writable body"))
+		p.getErrorHandler(rw, req, fmt.Errorf("internal error: 101 switching protocols response with non-writable body"))
 		return
 	}
 	defer backConn.Close()
 	conn, brw, err := hj.Hijack()
 	if err != nil {
-		p.getErrorHandler()(rw, req, fmt.Errorf("Hijack failed on protocol switch: %v", err))
+		p.getErrorHandler(rw, req, fmt.Errorf("Hijack failed on protocol switch: %v", err))
 		return
 	}
 	defer conn.Close()
 	res.Body = nil // so res.Write only writes the headers; we have res.Body in backConn above
 	if err := res.Write(brw); err != nil {
-		p.getErrorHandler()(rw, req, fmt.Errorf("response write: %v", err))
+		p.getErrorHandler(rw, req, fmt.Errorf("response write: %v", err))
 		return
 	}
 	if err := brw.Flush(); err != nil {
-		p.getErrorHandler()(rw, req, fmt.Errorf("response flush: %v", err))
+		p.getErrorHandler(rw, req, fmt.Errorf("response flush: %v", err))
 		return
 	}
 	errc := make(chan error, 1)
