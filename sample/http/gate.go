@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/smartwalle/http4go"
 	"net/http"
@@ -30,6 +31,22 @@ func main() {
 			c.AbortWithStatus(http.StatusBadGateway)
 			return
 		}
+
+		// 如果有需要解析参数，则需要把 request body 复制一份
+		nBody, err := http4go.CopyBody(c.Request)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer func() {
+			// 重新设置 request body
+			c.Request.Body = nBody
+		}()
+
+		// 解析参数
+		c.Request.ParseForm()
+		fmt.Println(c.Request.Form["p1"])
+		fmt.Println(c.Request.Form["p2"])
 
 		var p = rp.ProxyWithURL(target)
 		p.ServeHTTP(c.Writer, c.Request)
