@@ -9,7 +9,7 @@ import (
 
 func CopyBody(req *http.Request) (io.ReadCloser, error) {
 	var err error
-	if req.Body == nil {
+	if req == nil || req.Body == nil {
 		return http.NoBody, nil
 	}
 
@@ -22,16 +22,16 @@ func CopyBody(req *http.Request) (io.ReadCloser, error) {
 	return r2, nil
 }
 
-func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
-	if b == http.NoBody {
+func drainBody(src io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+	if src == http.NoBody {
 		return http.NoBody, http.NoBody, nil
 	}
 	var buf bytes.Buffer
-	if _, err = buf.ReadFrom(b); err != nil {
-		return nil, b, err
+	if _, err = buf.ReadFrom(src); err != nil {
+		return nil, nil, err
 	}
-	if err = b.Close(); err != nil {
-		return nil, b, err
+	if err = src.Close(); err != nil {
+		return nil, nil, err
 	}
 	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
