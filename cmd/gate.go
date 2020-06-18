@@ -45,8 +45,8 @@ func main() {
 
 		// 解析参数
 		c.Request.ParseForm()
-		fmt.Println(c.Request.Form["p1"])
-		fmt.Println(c.Request.Form["p2"])
+		fmt.Println("p1", "-", c.Request.Form["p1"])
+		fmt.Println("p2", "-", c.Request.Form["p2"])
 
 		var p = rp.ProxyWithURL(target)
 		p.ServeHTTP(c.Writer, c.Request)
