@@ -10,24 +10,24 @@ type URL struct {
 	params url.Values
 }
 
-func NewURL(rawURL string) (u *URL, err error) {
-	unescape, err := url.QueryUnescape(rawURL)
+func NewURL(s string) (u *URL, err error) {
+	unescape, err := url.QueryUnescape(s)
 	if err != nil {
 		return nil, err
 	}
-	newURL, err := url.Parse(unescape)
+	nURL, err := url.Parse(unescape)
 	if err != nil {
 		return nil, err
 	}
 
 	u = &URL{}
-	u.url = newURL
+	u.url = nURL
 	u.params = u.url.Query()
 	return u, nil
 }
 
-func MustURL(rawURL string) (u *URL) {
-	u, err := NewURL(rawURL)
+func MustURL(s string) (u *URL) {
+	u, err := NewURL(s)
 	if err != nil {
 		panic(err)
 	}
@@ -59,7 +59,7 @@ func (this *URL) Query() url.Values {
 	return this.params
 }
 
-func (this *URL) RawURL() *url.URL {
+func (this *URL) URL() *url.URL {
 	return this.url
 }
 
