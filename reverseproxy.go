@@ -39,6 +39,7 @@ func (this *ReverseProxy) ProxyWithDirector(director func(*http.Request)) *Proxy
 func (this *ReverseProxy) ProxyWithURL(target *url.URL) *Proxy {
 	targetQuery := target.RawQuery
 	director := func(req *http.Request) {
+		req.Host = target.Host
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
 		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
@@ -52,6 +53,10 @@ func (this *ReverseProxy) ProxyWithURL(target *url.URL) *Proxy {
 		//	// explicitly disable User-Agent so it's not set to default value
 		//	req.Header.Set("User-Agent", "")
 		//}
+
+		if host, ok := req.Header["Host"]; ok {
+			req.Header["X-Forwarded-Host"] = host
+		}
 	}
 	return this.ProxyWithDirector(director)
 }
