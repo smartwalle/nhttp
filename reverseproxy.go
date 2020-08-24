@@ -61,7 +61,7 @@ func (this *ReverseProxy) ProxyWithURL(target *url.URL) *Proxy {
 	return this.ProxyWithDirector(director)
 }
 
-// ReverseProxy is an HTTP Handler that takes an incoming request and
+// Proxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
 // client.
 //
