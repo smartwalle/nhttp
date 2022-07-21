@@ -1,4 +1,4 @@
-module github.com/smartwalle/http4go/cmd
+module github.com/smartwalle/http4go/sample
 
 go 1.14
 
