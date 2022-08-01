@@ -1,3 +1,3 @@
-module github.com/smartwalle/http4go
+module github.com/smartwalle/nhttp
 
 go 1.13

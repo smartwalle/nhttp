@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/smartwalle/http4go"
+	"github.com/smartwalle/nhttp"
 	"net/http"
 	"net/url"
 )
 
 func main() {
 	var s = gin.Default()
-	var bufferPool = http4go.NewBufferPool(1024)
+	var bufferPool = nhttp.NewBufferPool(1024)
 
 	var targets = make(map[string]*url.URL)
 	var tURL *url.URL
@@ -21,7 +21,7 @@ func main() {
 	tURL, _ = url.Parse("http://127.0.0.1:8892?gate=1")
 	targets["order"] = tURL
 
-	var rp = http4go.NewReverseProxy(bufferPool)
+	var rp = nhttp.NewReverseProxy(bufferPool)
 
 	s.Any("/api/:server/*path", func(c *gin.Context) {
 		var server = c.Param("server")
@@ -33,7 +33,7 @@ func main() {
 		}
 
 		// 如果有需要解析参数，则需要把 request body 复制一份
-		nBody, err := http4go.CopyBody(c.Request)
+		nBody, err := nhttp.DumpBody(c.Request)
 		if err != nil {
 			fmt.Println(err)
 			return

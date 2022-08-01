@@ -1,6 +1,6 @@
 // HTTP util, copy from net/http/httputil and golang.org/x/net/http/httpguts
 
-package http4go
+package nhttp
 
 import (
 	"strings"

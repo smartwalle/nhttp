@@ -1,6 +1,6 @@
 // HTTP reverse proxy handler, copy from net/http/httputil
 
-package http4go
+package nhttp
 
 import (
 	"context"
@@ -156,7 +156,7 @@ func (p *Proxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, e
 }
 
 func (p *Proxy) getErrorHandler(w http.ResponseWriter, req *http.Request, err error) {
-	logger.Output(2, fmt.Sprintf("http4go: proxy error: %v \n", err))
+	logger.Output(2, fmt.Sprintf("nhttp: proxy error: %v \n", err))
 	var h = p.ErrorHandler
 	if h == nil {
 		h = p.defaultErrorHandler
@@ -297,7 +297,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req) {
-			logger.Printf("http4go: suppressing panic for copyResponse error in test; copy error: %v \n", err)
+			logger.Printf("nhttp: suppressing panic for copyResponse error in test; copy error: %v \n", err)
 			return
 		}
 		panic(http.ErrAbortHandler)
@@ -411,7 +411,7 @@ func (p *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, err
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			logger.Printf("http4go: Proxy read error during body copy: %v \n", rerr)
+			logger.Printf("nhttp: Proxy read error during body copy: %v \n", rerr)
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])

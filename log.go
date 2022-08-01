@@ -1,4 +1,4 @@
-package http4go
+package nhttp
 
 import (
 	"log"
@@ -24,7 +24,7 @@ func SetLogger(l Logger) {
 		l = &nilLogger{}
 	}
 	if l.Prefix() == "" {
-		l.SetPrefix("[http4go] ")
+		l.SetPrefix("[nhttp] ")
 	}
 	logger = l
 }

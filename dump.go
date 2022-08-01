@@ -1,4 +1,4 @@
-package http4go
+package nhttp
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func CopyBody(req *http.Request) (io.ReadCloser, error) {
+func DumpBody(req *http.Request) (io.ReadCloser, error) {
 	var err error
 	if req == nil || req.Body == nil {
 		return http.NoBody, nil

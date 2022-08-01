@@ -1,4 +1,4 @@
-package http4go
+package nhttp
 
 import (
 	"net/url"
