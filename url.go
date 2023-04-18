@@ -6,8 +6,8 @@ import (
 )
 
 type URL struct {
-	url    *url.URL
-	params url.Values
+	url   *url.URL
+	query url.Values
 }
 
 func NewURL(s string) (u *URL, err error) {
@@ -22,7 +22,7 @@ func NewURL(s string) (u *URL, err error) {
 
 	u = &URL{}
 	u.url = nURL
-	u.params = u.url.Query()
+	u.query = u.url.Query()
 	return u, nil
 }
 
@@ -35,28 +35,28 @@ func MustURL(s string) (u *URL) {
 }
 
 func (this *URL) String() string {
-	this.url.RawQuery = this.params.Encode()
+	this.url.RawQuery = this.query.Encode()
 	return this.url.String()
 }
 
 func (this *URL) Add(key, value string) {
-	this.params.Add(key, value)
+	this.query.Add(key, value)
 }
 
 func (this *URL) Del(key string) {
-	this.params.Del(key)
+	this.query.Del(key)
 }
 
 func (this *URL) Set(key, value string) {
-	this.params.Set(key, value)
+	this.query.Set(key, value)
 }
 
 func (this *URL) Get(key string) string {
-	return this.params.Get(key)
+	return this.query.Get(key)
 }
 
 func (this *URL) Query() url.Values {
-	return this.params
+	return this.query
 }
 
 func (this *URL) URL() *url.URL {
