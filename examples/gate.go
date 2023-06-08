@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/smartwalle/nhttp"
+	"github.com/smartwalle/nhttp/internal"
 	"net/http"
 	"net/url"
 )
 
 func main() {
 	var s = gin.Default()
-	var bufferPool = nhttp.NewBufferPool(1024)
+	var bufferPool = internal.NewBufferPool(1024)
 
 	var targets = make(map[string]*url.URL)
 	var tURL *url.URL

@@ -23,13 +23,13 @@ import (
 
 type ReverseProxy struct {
 	logger       Logger
-	BufferPool   BufferPool
+	BufferPool   internal.BufferPool
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 }
 
-func NewReverseProxy(bufferPool BufferPool, logger Logger) *ReverseProxy {
+func NewReverseProxy(bufferPool internal.BufferPool, logger Logger) *ReverseProxy {
 	if bufferPool == nil {
-		bufferPool = NewBufferPool(1024)
+		bufferPool = internal.NewBufferPool(1024)
 	}
 
 	if logger == nil {
@@ -122,7 +122,7 @@ type Proxy struct {
 	// BufferPool optionally specifies a buffer pool to
 	// get byte slices for use by io.CopyBuffer when
 	// copying HTTP response bodies.
-	BufferPool BufferPool
+	BufferPool internal.BufferPool
 
 	// ModifyResponse is an optional function that modifies the
 	// Response from the backend. It is called if the backend
