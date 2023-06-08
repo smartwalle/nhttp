@@ -1,4 +1,4 @@
-package internal
+package nhttp
 
 import "sync"
 
