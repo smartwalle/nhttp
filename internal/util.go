@@ -1,13 +1,17 @@
-// HTTP util, copy from net/http/httputil and golang.org/x/net/http/httpguts
-
-package nhttp
+package internal
 
 import (
 	"strings"
 	"unicode/utf8"
 )
 
-func singleJoiningSlash(a, b string) string {
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This is a fork of net/http/httputil and golang.org/x/net/http/httpguts
+
+func SingleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")
 	bslash := strings.HasPrefix(b, "/")
 	switch {

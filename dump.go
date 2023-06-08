@@ -3,9 +3,14 @@ package nhttp
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This is a fork of net/http/httputil
 
 func DumpBody(req *http.Request) (io.ReadCloser, error) {
 	var err error
@@ -33,5 +38,5 @@ func drainBody(src io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
 	if err = src.Close(); err != nil {
 		return nil, nil, err
 	}
-	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	return io.NopCloser(&buf), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }

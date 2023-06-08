@@ -1,35 +1,50 @@
-// HTTP reverse proxy handler, copy from net/http/httputil
-
 package nhttp
 
 import (
 	"context"
 	"fmt"
+	"github.com/smartwalle/nhttp/internal"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
 )
 
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This is a fork of net/http/httputil
+
 type ReverseProxy struct {
+	logger       Logger
 	BufferPool   BufferPool
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 }
 
-func NewReverseProxy(bufferPool BufferPool) *ReverseProxy {
+func NewReverseProxy(bufferPool BufferPool, logger Logger) *ReverseProxy {
 	if bufferPool == nil {
 		bufferPool = NewBufferPool(1024)
 	}
+
+	if logger == nil {
+		logger = log.New(os.Stdout, "", log.LstdFlags|log.Llongfile)
+	}
+
 	var m = &ReverseProxy{}
+	m.logger = logger
 	m.BufferPool = bufferPool
 	return m
 }
 
 func (this *ReverseProxy) ProxyWithDirector(director func(*http.Request)) *Proxy {
 	var p = &Proxy{}
+	p.logger = this.logger
 	p.Director = director
 	p.BufferPool = this.BufferPool
 	p.ErrorHandler = this.ErrorHandler
@@ -42,7 +57,7 @@ func (this *ReverseProxy) ProxyWithURL(target *url.URL) *Proxy {
 		req.Host = target.Host
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
-		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+		req.URL.Path = internal.SingleJoiningSlash(target.Path, req.URL.Path)
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
 		} else {
@@ -73,6 +88,8 @@ func (this *ReverseProxy) ProxyWithURL(target *url.URL) *Proxy {
 // X-Forwarded-For header coming from the client or
 // an untrusted proxy.
 type Proxy struct {
+	logger Logger
+
 	// Director must be a function which modifies
 	// the request into a new request to be sent
 	// using Transport. Its response is then copied
@@ -156,7 +173,7 @@ func (p *Proxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, e
 }
 
 func (p *Proxy) getErrorHandler(w http.ResponseWriter, req *http.Request, err error) {
-	logger.Output(2, fmt.Sprintf("nhttp: proxy error: %v \n", err))
+	p.logger.Output(2, fmt.Sprintf("proxy error: %v \n", err))
 	var h = p.ErrorHandler
 	if h == nil {
 		h = p.defaultErrorHandler
@@ -297,7 +314,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req) {
-			logger.Printf("nhttp: suppressing panic for copyResponse error in test; copy error: %v \n", err)
+			p.logger.Printf("suppressing panic for copyResponse error in test; copy error: %v \n", err)
 			return
 		}
 		panic(http.ErrAbortHandler)
@@ -411,7 +428,7 @@ func (p *Proxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, err
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			logger.Printf("nhttp: Proxy read error during body copy: %v \n", rerr)
+			p.logger.Printf("proxy read error during body copy: %v \n", rerr)
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])
@@ -492,7 +509,7 @@ func (m *maxLatencyWriter) stop() {
 }
 
 func upgradeType(h http.Header) string {
-	if !HeaderValuesContainsToken(h["Connection"], "Upgrade") {
+	if !internal.HeaderValuesContainsToken(h["Connection"], "Upgrade") {
 		return ""
 	}
 	return strings.ToLower(h.Get("Upgrade"))
