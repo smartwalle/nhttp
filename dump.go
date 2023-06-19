@@ -12,18 +12,27 @@ import (
 
 // This is a fork of net/http/httputil
 
-func DumpBody(req *http.Request) (io.ReadCloser, error) {
-	var err error
+func DumpRequestBody(req *http.Request) (io.ReadCloser, error) {
 	if req == nil || req.Body == nil {
 		return http.NoBody, nil
 	}
-
 	r1, r2, err := drainBody(req.Body)
 	if err != nil {
 		return nil, err
 	}
 	req.Body = r1
+	return r2, nil
+}
 
+func DumpResponseBody(rsp *http.Response) (io.ReadCloser, error) {
+	if rsp == nil || rsp.Body == nil {
+		return http.NoBody, nil
+	}
+	r1, r2, err := drainBody(rsp.Body)
+	if err != nil {
+		return nil, err
+	}
+	rsp.Body = r1
 	return r2, nil
 }
 
