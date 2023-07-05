@@ -15,20 +15,25 @@ const (
 	kDefault = "default"
 )
 
+type DecodeFunc func(name, tag string, values []string) (interface{}, error)
+
 type fieldDescriptor struct {
 	Index   []int
 	Tag     string
 	Default []string
+	Decoder DecodeFunc
 }
 
 type structDescriptor struct {
+	Name   string
 	Fields []fieldDescriptor
 }
 
 type Mapper struct {
-	tag     string
-	structs atomic.Value // map[reflect.Type]structDescriptor
-	mu      sync.Mutex
+	tag      string
+	structs  atomic.Value // map[reflect.Type]structDescriptor
+	mu       sync.Mutex
+	decoders map[reflect.Type]DecodeFunc
 }
 
 var mapper = NewMapper(kTag)
@@ -41,7 +46,15 @@ func NewMapper(tag string) *Mapper {
 	var m = &Mapper{}
 	m.tag = tag
 	m.structs.Store(make(map[reflect.Type]structDescriptor))
+	m.decoders = make(map[reflect.Type]DecodeFunc)
 	return m
+}
+
+func (this *Mapper) UseDecoder(dstType reflect.Type, fn DecodeFunc) {
+	if dstType == nil || fn == nil {
+		return
+	}
+	this.decoders[dstType] = fn
 }
 
 func (this *Mapper) Bind(src map[string][]string, dst interface{}) error {
@@ -84,6 +97,16 @@ func (this *Mapper) Bind(src map[string][]string, dst interface{}) error {
 		}
 
 		var fieldValue = fieldByIndex(dstValue, field.Index)
+
+		if field.Decoder != nil {
+			var nValue, err = field.Decoder(dStruct.Name, field.Tag, values)
+			if err != nil {
+				return err
+			}
+			fieldValue.Set(reflect.ValueOf(nValue))
+			continue
+		}
+
 		if err := mapValues(fieldValue, values); err != nil {
 			return err
 		}
@@ -186,6 +209,7 @@ func (this *Mapper) parseStructDescriptor(dstType reflect.Type) structDescriptor
 			var dField = fieldDescriptor{}
 			dField.Index = append(current.Index, i)
 			dField.Tag = tag
+			dField.Decoder = this.decoders[fieldStruct.Type]
 
 			var opt string
 			for len(opts) > 0 {
@@ -202,6 +226,7 @@ func (this *Mapper) parseStructDescriptor(dstType reflect.Type) structDescriptor
 		}
 	}
 
+	dStruct.Name = dstType.String()
 	dStruct.Fields = make([]fieldDescriptor, 0, len(dFields))
 	for _, field := range dFields {
 		dStruct.Fields = append(dStruct.Fields, field)
