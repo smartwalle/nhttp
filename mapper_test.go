@@ -70,8 +70,6 @@ type Student struct {
 	Class  string `form:"class"`
 }
 
-var studentForm = url.Values{"name": {"Yangfeng"}, "age": {"10"}, "number": {"3414416614257328130"}, "birthday": {"2016-06-12"}, "class": {"class"}}
-
 func TestMapper_BindEmbed(t *testing.T) {
 	var tests = []struct {
 		form    url.Values
