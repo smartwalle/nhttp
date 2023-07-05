@@ -12,7 +12,7 @@ type Human struct {
 	Birthday string `form:"birthday"`
 }
 
-func TestMapper_BindHuman(t *testing.T) {
+func TestMapper_Bind(t *testing.T) {
 	var tests = []struct {
 		form  url.Values
 		human Human
@@ -43,12 +43,10 @@ func TestMapper_BindHuman(t *testing.T) {
 		},
 	}
 
-	var m = nhttp.NewMapper("form")
-
 	for _, test := range tests {
 		var dst Human
 
-		if err := m.Bind(test.form, &dst); err != nil {
+		if err := nhttp.Bind(test.form, &dst); err != nil {
 			t.Fatal(err)
 		}
 
@@ -61,36 +59,61 @@ func TestMapper_BindHuman(t *testing.T) {
 		}
 
 		if dst.Birthday != test.human.Birthday {
-			t.Fatalf("Age - 期望: %s, 实际: %s", test.human.Birthday, dst.Birthday)
+			t.Fatalf("Birthday - 期望: %s, 实际: %s", test.human.Birthday, dst.Birthday)
 		}
 	}
 }
 
 type Student struct {
 	Human
-	Number  int64    `form:"number"`
-	Class   string   `form:"class"`
-	Teacher []string `form:"teacher,default=10,11"`
+	Number int64  `form:"number"`
+	Class  string `form:"class"`
 }
 
 var studentForm = url.Values{"name": {"Yangfeng"}, "age": {"10"}, "number": {"3414416614257328130"}, "birthday": {"2016-06-12"}, "class": {"class"}}
 
-func TestMapper_Bind(t *testing.T) {
-	var s *Student
-	var m = nhttp.NewMapper("form")
-	m.Bind(studentForm, &s)
-	t.Log(s)
-}
-
-func BenchmarkMapperBind(b *testing.B) {
-	var m = nhttp.NewMapper("form")
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var s Student
-		m.Bind(studentForm, &s)
+func TestMapper_BindEmbed(t *testing.T) {
+	var tests = []struct {
+		form    url.Values
+		student Student
+	}{
+		{
+			form:    url.Values{"name": {"name1"}, "age": {"10"}, "birthday": {"2023-07-05"}, "number": {"1"}, "class": {"c1"}},
+			student: Student{Human: Human{Name: "name1", Age: 10, Birthday: "2023-07-05"}, Number: 1, Class: "c1"},
+		},
+		{
+			form:    url.Values{"name": {"name2"}, "age": {"11"}, "birthday": {"2023-07-06"}, "number": {"2"}, "class": {"c2"}},
+			student: Student{Human: Human{Name: "name2", Age: 11, Birthday: "2023-07-06"}, Number: 2, Class: "c2"},
+		},
 	}
-	b.StopTimer()
+
+	for _, test := range tests {
+		var dst Student
+
+		if err := nhttp.Bind(test.form, &dst); err != nil {
+			t.Fatal(err)
+		}
+
+		if dst.Name != test.student.Name {
+			t.Fatalf("Name - 期望: %s, 实际: %s", test.student.Name, dst.Name)
+		}
+
+		if dst.Age != test.student.Age {
+			t.Fatalf("Age - 期望: %d, 实际: %d", test.student.Age, dst.Age)
+		}
+
+		if dst.Birthday != test.student.Birthday {
+			t.Fatalf("Birthday - 期望: %s, 实际: %s", test.student.Birthday, dst.Birthday)
+		}
+
+		if dst.Number != test.student.Number {
+			t.Fatalf("Birthday - 期望: %d, 实际: %d", test.student.Number, dst.Number)
+		}
+
+		if dst.Class != test.student.Class {
+			t.Fatalf("Birthday - 期望: %s, 实际: %s", test.student.Class, dst.Class)
+		}
+	}
 }
 
 var userForm = url.Values{"firstname": {"Feng"}, "lastname": {"Yang"}, "email": {"yangfeng@qq.com"}, "age": {"10"}}
