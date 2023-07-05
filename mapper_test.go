@@ -8,7 +8,7 @@ import (
 
 type Human struct {
 	Name     string `form:"name"`
-	Age      int    `form:"age"`
+	Age      int    `form:"age,default=20"`
 	Birthday string `form:"birthday"`
 }
 
@@ -33,10 +33,13 @@ func TestMapper_BindHuman(t *testing.T) {
 			form:  url.Values{"name": {"name4"}, "age": {"-1"}, "birthday": {"2023-07-08"}},
 			human: Human{Name: "name4", Age: -1, Birthday: "2023-07-08"},
 		},
-
 		{
 			form:  url.Values{"name": {"name5"}, "age": {""}, "birthday": {"2023-07-09"}},
 			human: Human{Name: "name5", Age: 0, Birthday: "2023-07-09"},
+		},
+		{
+			form:  url.Values{"name": {"name6"}, "birthday": {"2023-07-10"}},
+			human: Human{Name: "name6", Age: 20, Birthday: "2023-07-10"},
 		},
 	}
 
@@ -65,8 +68,9 @@ func TestMapper_BindHuman(t *testing.T) {
 
 type Student struct {
 	Human
-	Number int64  `form:"number"`
-	Class  string `form:"class"`
+	Number  int64    `form:"number"`
+	Class   string   `form:"class"`
+	Teacher []string `form:"teacher,default=10,11"`
 }
 
 var studentForm = url.Values{"name": {"Yangfeng"}, "age": {"10"}, "number": {"3414416614257328130"}, "birthday": {"2016-06-12"}, "class": {"class"}}

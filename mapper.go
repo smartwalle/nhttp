@@ -4,18 +4,21 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
 
 const (
-	kNoTag = "-"
-	kTag   = "form"
+	kNoTag   = "-"
+	kTag     = "form"
+	kDefault = "default"
 )
 
 type fieldDescriptor struct {
-	Index []int
-	Tag   string
+	Index   []int
+	Tag     string
+	Default []string
 }
 
 type structDescriptor struct {
@@ -74,7 +77,10 @@ func (this *Mapper) Bind(src map[string][]string, dst interface{}) error {
 	for _, field := range dStruct.Fields {
 		var values, exists = src[field.Tag]
 		if !exists {
-			continue
+			if len(field.Default) == 0 {
+				continue
+			}
+			values = field.Default
 		}
 
 		var fieldValue = fieldByIndex(dstValue, field.Index)
@@ -150,6 +156,9 @@ func (this *Mapper) parseStructDescriptor(dstType reflect.Type) structDescriptor
 				continue
 			}
 
+			var opts string
+			tag, opts = head(tag, ",")
+
 			if tag == "" {
 				tag = fieldStruct.Name
 
@@ -178,6 +187,17 @@ func (this *Mapper) parseStructDescriptor(dstType reflect.Type) structDescriptor
 			dField.Index = append(current.Index, i)
 			dField.Tag = tag
 
+			var opt string
+			for len(opts) > 0 {
+				opt, opts = head(opts, ",")
+
+				key, value := head(opt, "=")
+				switch key {
+				case kDefault:
+					dField.Default = strings.Split(value, ";")
+				}
+			}
+
 			dFields[tag] = dField
 		}
 	}
@@ -193,26 +213,24 @@ func (this *Mapper) parseStructDescriptor(dstType reflect.Type) structDescriptor
 	return dStruct
 }
 
+func head(str, sep string) (head string, tail string) {
+	idx := strings.Index(str, sep)
+	if idx < 0 {
+		return str, ""
+	}
+	return str[:idx], str[idx+len(sep):]
+}
+
 func mapValues(field reflect.Value, values []string) error {
-	if field.Kind() == reflect.Slice /* && field.IsNil() == false */ {
-		var valueLen = 1
-		if len(values) > 1 {
-			// 如果绑定源数据也是 slice
-			var s = reflect.MakeSlice(field.Type(), valueLen, valueLen)
-			for i := 0; i < valueLen; i++ {
-				if err := mapValue(s.Index(i), values[i]); err != nil {
-					return err
-				}
-			}
-			field.Set(s)
-		} else {
-			// 如果绑定源数据不是 slice
-			var s = reflect.MakeSlice(field.Type(), valueLen, valueLen)
-			if err := mapValue(s.Index(0), values[0]); err != nil {
+	if field.Kind() == reflect.Slice {
+		var valueLen = len(values)
+		var s = reflect.MakeSlice(field.Type(), valueLen, valueLen)
+		for i := 0; i < valueLen; i++ {
+			if err := mapValue(s.Index(i), values[i]); err != nil {
 				return err
 			}
-			field.Set(s)
 		}
+		field.Set(s)
 		return nil
 	}
 	return mapValue(field, values[0])
