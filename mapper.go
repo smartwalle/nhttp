@@ -28,9 +28,15 @@ type Mapper struct {
 	mu      sync.Mutex
 }
 
-func NewMapper() *Mapper {
+var mapper = NewMapper(kTag)
+
+func Bind(src map[string][]string, dst interface{}) error {
+	return mapper.Bind(src, dst)
+}
+
+func NewMapper(tag string) *Mapper {
 	var m = &Mapper{}
-	m.tag = kTag
+	m.tag = tag
 	m.structs.Store(make(map[reflect.Type]structDescriptor))
 	return m
 }

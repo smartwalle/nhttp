@@ -40,7 +40,7 @@ func TestMapper_BindHuman(t *testing.T) {
 		},
 	}
 
-	var m = nhttp.NewMapper()
+	var m = nhttp.NewMapper("form")
 
 	for _, test := range tests {
 		var dst Human
@@ -73,13 +73,13 @@ var studentForm = url.Values{"name": {"Yangfeng"}, "age": {"10"}, "number": {"34
 
 func TestMapper_Bind(t *testing.T) {
 	var s *Student
-	var m = nhttp.NewMapper()
+	var m = nhttp.NewMapper("form")
 	m.Bind(studentForm, &s)
 	t.Log(s)
 }
 
 func BenchmarkMapperBind(b *testing.B) {
-	var m = nhttp.NewMapper()
+	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -99,7 +99,7 @@ type User struct {
 }
 
 func BenchmarkMapperBind_Struct(b *testing.B) {
-	var m = nhttp.NewMapper()
+	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -110,7 +110,7 @@ func BenchmarkMapperBind_Struct(b *testing.B) {
 }
 
 func BenchmarkMapperBind_Pointer(b *testing.B) {
-	var m = nhttp.NewMapper()
+	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -121,7 +121,7 @@ func BenchmarkMapperBind_Pointer(b *testing.B) {
 }
 
 func BenchmarkMapperBind_StructParallel(b *testing.B) {
-	var m = nhttp.NewMapper()
+	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -134,7 +134,7 @@ func BenchmarkMapperBind_StructParallel(b *testing.B) {
 }
 
 func BenchmarkMapperBind_PointerParallel(b *testing.B) {
-	var m = nhttp.NewMapper()
+	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
 
