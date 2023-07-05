@@ -72,8 +72,8 @@ func (this *Mapper) Bind(src map[string][]string, dst interface{}) error {
 	}
 
 	for _, field := range dStruct.Fields {
-		var values, ok = src[field.Tag]
-		if !ok {
+		var values, exists = src[field.Tag]
+		if !exists {
 			continue
 		}
 
@@ -85,22 +85,22 @@ func (this *Mapper) Bind(src map[string][]string, dst interface{}) error {
 	return nil
 }
 
-func fieldByIndex(v reflect.Value, index []int) reflect.Value {
+func fieldByIndex(parent reflect.Value, index []int) reflect.Value {
 	if len(index) == 1 {
-		return v.Field(index[0])
+		return parent.Field(index[0])
 	}
 	for i, x := range index {
 		if i > 0 {
-			if v.Kind() == reflect.Pointer && v.Type().Elem().Kind() == reflect.Struct {
-				if v.IsNil() {
-					v.Set(reflect.New(v.Type().Elem()))
+			if parent.Kind() == reflect.Pointer && parent.Type().Elem().Kind() == reflect.Struct {
+				if parent.IsNil() {
+					parent.Set(reflect.New(parent.Type().Elem()))
 				}
-				v = v.Elem()
+				parent = parent.Elem()
 			}
 		}
-		v = v.Field(x)
+		parent = parent.Field(x)
 	}
-	return v
+	return parent
 }
 
 func (this *Mapper) getStructDescriptor(key reflect.Type) (structDescriptor, bool) {
