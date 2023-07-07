@@ -15,7 +15,7 @@ const (
 	kDefault = "default"
 )
 
-type DecodeFunc func(name, tag string, values []string) (interface{}, error)
+type DecodeFunc func(value string) (interface{}, error)
 
 type fieldDescriptor struct {
 	Index   []int
@@ -97,17 +97,7 @@ func (this *Mapper) Bind(src map[string][]string, dst interface{}) error {
 		}
 
 		var fieldValue = fieldByIndex(dstValue, field.Index)
-
-		if field.Decoder != nil {
-			var nValue, err = field.Decoder(dStruct.Name, field.Tag, values)
-			if err != nil {
-				return err
-			}
-			fieldValue.Set(reflect.ValueOf(nValue))
-			continue
-		}
-
-		if err := mapValues(fieldValue, values); err != nil {
+		if err := mapValues(fieldValue, field.Decoder, values); err != nil {
 			return err
 		}
 	}
@@ -246,22 +236,22 @@ func head(str, sep string) (head string, tail string) {
 	return str[:idx], str[idx+len(sep):]
 }
 
-func mapValues(field reflect.Value, values []string) error {
+func mapValues(field reflect.Value, decoder DecodeFunc, values []string) error {
 	if field.Kind() == reflect.Slice {
 		var vLen = len(values)
 		var s = reflect.MakeSlice(field.Type(), vLen, vLen)
 		for i := 0; i < vLen; i++ {
-			if err := mapValue(s.Index(i), values[i]); err != nil {
+			if err := mapValue(s.Index(i), decoder, values[i]); err != nil {
 				return err
 			}
 		}
 		field.Set(s)
 		return nil
 	}
-	return mapValue(field, values[0])
+	return mapValue(field, decoder, values[0])
 }
 
-func mapValue(field reflect.Value, value string) error {
+func mapValue(field reflect.Value, decoder DecodeFunc, value string) error {
 	switch field.Kind() {
 	case reflect.Interface:
 		field.Set(reflect.ValueOf(value))
@@ -296,6 +286,14 @@ func mapValue(field reflect.Value, value string) error {
 	case reflect.Bool:
 		return mapBool(field, value)
 	default:
+		if decoder != nil {
+			var nValue, err = decoder(value)
+			if err != nil {
+				return err
+			}
+			field.Set(reflect.ValueOf(nValue))
+			return nil
+		}
 		return errors.New("cannot unmarshal into " + field.Type().String())
 	}
 	return nil

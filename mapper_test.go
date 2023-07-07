@@ -190,8 +190,8 @@ type DateTime struct {
 
 func TestMapper_UseDecoder(t *testing.T) {
 	var m = nhttp.NewMapper("form")
-	m.UseDecoder(reflect.TypeOf(&time.Time{}), func(name, tag string, values []string) (interface{}, error) {
-		var nt, err = time.Parse("2006-01-02", values[0])
+	m.UseDecoder(reflect.TypeOf(&time.Time{}), func(value string) (interface{}, error) {
+		var nt, err = time.Parse("2006-01-02", value)
 		if err != nil {
 			return nil, err
 		}
@@ -218,8 +218,8 @@ func TestMapper_UseDecoder(t *testing.T) {
 
 func BenchmarkMapperUseDecoder(b *testing.B) {
 	var m = nhttp.NewMapper("form")
-	m.UseDecoder(reflect.TypeOf(&time.Time{}), func(name, tag string, values []string) (interface{}, error) {
-		var nt, err = time.Parse("2006-01-02", values[0])
+	m.UseDecoder(reflect.TypeOf(&time.Time{}), func(value string) (interface{}, error) {
+		var nt, err = time.Parse("2006-01-02", value)
 		if err != nil {
 			return nil, err
 		}
