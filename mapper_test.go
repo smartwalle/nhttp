@@ -181,13 +181,16 @@ func BenchmarkMapperBind_PointerParallel(b *testing.B) {
 	})
 }
 
+var form = url.Values{"end_time": {"2022-02-02"}}
+
+type DateTime struct {
+	BeginTime *time.Time `form:"begin_time,default=2022-01-02"`
+	EndTime   *time.Time `form:"end_time"`
+}
+
 func TestMapper_UseDecoder(t *testing.T) {
 	var m = nhttp.NewMapper("form")
 	m.UseDecoder(reflect.TypeOf(&time.Time{}), func(name, tag string, values []string) (interface{}, error) {
-		if len(values) == 0 {
-			return nil, nil
-		}
-
 		var nt, err = time.Parse("2006-01-02", values[0])
 		if err != nil {
 			return nil, err
@@ -195,27 +198,40 @@ func TestMapper_UseDecoder(t *testing.T) {
 		return &nt, nil
 	})
 
-	var data = url.Values{"end_time": {"2022-02-02"}}
-
-	type TestStruct struct {
-		BeginTime *time.Time `form:"begin_time,default=2022-01-02"`
-		EndTime   *time.Time `form:"end_time"`
-	}
-
-	var s TestStruct
-	if err := m.Bind(data, &s); err != nil {
+	var dst DateTime
+	if err := m.Bind(form, &dst); err != nil {
 		t.Fatal(err)
 	}
 
-	if s.BeginTime == nil || s.EndTime == nil {
+	if dst.BeginTime == nil || dst.EndTime == nil {
 		t.Fatal("转换时间失败")
 	}
 
-	if s.BeginTime.Year() != 2022 || s.BeginTime.Month() != time.January || s.BeginTime.Day() != 2 {
+	if dst.BeginTime.Year() != 2022 || dst.BeginTime.Month() != time.January || dst.BeginTime.Day() != 2 {
 		t.Fatal("转换时间失败")
 	}
 
-	if s.EndTime.Year() != 2022 || s.EndTime.Month() != time.February || s.EndTime.Day() != 2 {
+	if dst.EndTime.Year() != 2022 || dst.EndTime.Month() != time.February || dst.EndTime.Day() != 2 {
 		t.Fatal("转换时间失败")
+	}
+}
+
+func BenchmarkMapperUseDecoder(b *testing.B) {
+	var m = nhttp.NewMapper("form")
+	m.UseDecoder(reflect.TypeOf(&time.Time{}), func(name, tag string, values []string) (interface{}, error) {
+		var nt, err = time.Parse("2006-01-02", values[0])
+		if err != nil {
+			return nil, err
+		}
+		return &nt, nil
+	})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var dst DateTime
+		if err := m.Bind(form, &dst); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

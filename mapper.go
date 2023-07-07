@@ -226,7 +226,7 @@ func (this *Mapper) parseStructDescriptor(dstType reflect.Type) structDescriptor
 		}
 	}
 
-	dStruct.Name = dstType.String()
+	dStruct.Name = dstType.Name()
 	dStruct.Fields = make([]fieldDescriptor, 0, len(dFields))
 	for _, field := range dFields {
 		dStruct.Fields = append(dStruct.Fields, field)
@@ -248,9 +248,9 @@ func head(str, sep string) (head string, tail string) {
 
 func mapValues(field reflect.Value, values []string) error {
 	if field.Kind() == reflect.Slice {
-		var valueLen = len(values)
-		var s = reflect.MakeSlice(field.Type(), valueLen, valueLen)
-		for i := 0; i < valueLen; i++ {
+		var vLen = len(values)
+		var s = reflect.MakeSlice(field.Type(), vLen, vLen)
+		for i := 0; i < vLen; i++ {
 			if err := mapValue(s.Index(i), values[i]); err != nil {
 				return err
 			}
