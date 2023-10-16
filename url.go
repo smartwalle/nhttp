@@ -34,38 +34,38 @@ func MustURL(s string) (u *URL) {
 	return u
 }
 
-func (this *URL) String() string {
-	this.url.RawQuery = this.query.Encode()
-	return this.url.String()
+func (u *URL) String() string {
+	u.url.RawQuery = u.query.Encode()
+	return u.url.String()
 }
 
-func (this *URL) Add(key, value string) {
-	this.query.Add(key, value)
+func (u *URL) Add(key, value string) {
+	u.query.Add(key, value)
 }
 
-func (this *URL) Del(key string) {
-	this.query.Del(key)
+func (u *URL) Del(key string) {
+	u.query.Del(key)
 }
 
-func (this *URL) Set(key, value string) {
-	this.query.Set(key, value)
+func (u *URL) Set(key, value string) {
+	u.query.Set(key, value)
 }
 
-func (this *URL) Get(key string) string {
-	return this.query.Get(key)
+func (u *URL) Get(key string) string {
+	return u.query.Get(key)
 }
 
-func (this *URL) Query() url.Values {
-	return this.query
+func (u *URL) Query() url.Values {
+	return u.query
 }
 
-func (this *URL) URL() *url.URL {
-	return this.url
+func (u *URL) URL() *url.URL {
+	return u.url
 }
 
-func (this *URL) JoinPath(p ...string) {
+func (u *URL) JoinPath(p ...string) {
 	var np = path.Join(p...)
-	this.url.Path = path.Join(this.url.Path, np)
+	u.url.Path = path.Join(u.url.Path, np)
 }
 
 func URLEncode(s string) string {
