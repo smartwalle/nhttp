@@ -2,6 +2,7 @@ package nhttp
 
 import (
 	"errors"
+	"math"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -89,12 +90,12 @@ func (mapper *Mapper) Encode(src interface{}) (url.Values, error) {
 	var values = make(url.Values, len(dStruct.Fields))
 	for _, field := range dStruct.Fields {
 		var fieldValue = fieldByIndex(srcValue, field.Index)
-		encodeField(field, fieldValue, values)
+		encode(field, fieldValue, values)
 	}
 	return values, nil
 }
 
-func encodeField(field fieldDescriptor, fieldValue reflect.Value, values url.Values) {
+func encode(field fieldDescriptor, fieldValue reflect.Value, values url.Values) {
 	switch fieldValue.Kind() {
 	case reflect.String:
 		var nValue = fieldValue.String()
@@ -118,7 +119,7 @@ func encodeField(field fieldDescriptor, fieldValue reflect.Value, values url.Val
 		values.Add(field.Tag, nValue)
 	case reflect.Float32, reflect.Float64:
 		var iValue = fieldValue.Float()
-		if field.Omitempty && iValue == 0 {
+		if field.Omitempty && math.Float64bits(iValue) == 0 {
 			return
 		}
 		var nValue = strconv.FormatFloat(iValue, 'g', -1, fieldValue.Type().Bits())
@@ -128,7 +129,7 @@ func encodeField(field fieldDescriptor, fieldValue reflect.Value, values url.Val
 		values.Add(field.Tag, nValue)
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < fieldValue.Len(); i++ {
-			encodeField(field, fieldValue.Index(i), values)
+			encode(field, fieldValue.Index(i), values)
 		}
 	}
 }
