@@ -125,33 +125,33 @@ type User struct {
 	Age       int    `form:"age"`
 }
 
-func BenchmarkMapperBind_Struct(b *testing.B) {
+func BenchmarkMapperDecode_Struct(b *testing.B) {
 	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		var u User
-		if err := m.Bind(userForm, &u); err != nil {
+		if err := m.Decode(userForm, &u); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkMapperBind_Pointer(b *testing.B) {
+func BenchmarkMapperDecode_Pointer(b *testing.B) {
 	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		var u *User
-		if err := m.Bind(userForm, &u); err != nil {
+		if err := m.Decode(userForm, &u); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkMapperBind_StructParallel(b *testing.B) {
+func BenchmarkMapperDecode_StructParallel(b *testing.B) {
 	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -159,14 +159,14 @@ func BenchmarkMapperBind_StructParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var u User
-			if err := m.Bind(userForm, &u); err != nil {
+			if err := m.Decode(userForm, &u); err != nil {
 				b.Fatal(err)
 			}
 		}
 	})
 }
 
-func BenchmarkMapperBind_PointerParallel(b *testing.B) {
+func BenchmarkMapperDecode_PointerParallel(b *testing.B) {
 	var m = nhttp.NewMapper("form")
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -174,7 +174,7 @@ func BenchmarkMapperBind_PointerParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var u *User
-			if err := m.Bind(userForm, &u); err != nil {
+			if err := m.Decode(userForm, &u); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -199,7 +199,7 @@ func TestMapper_UseDecoder(t *testing.T) {
 	})
 
 	var dst DateTime
-	if err := m.Bind(form, &dst); err != nil {
+	if err := m.Decode(form, &dst); err != nil {
 		t.Fatal(err)
 	}
 
@@ -230,7 +230,7 @@ func BenchmarkMapperUseDecoder(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var dst DateTime
-		if err := m.Bind(form, &dst); err != nil {
+		if err := m.Decode(form, &dst); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -271,7 +271,6 @@ func TestMapper_Encode(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		t.Log(values.Encode())
 		if values.Encode() != test.form.Encode() {
 			t.Fatalf("期望: %s, 实际: %s", test.form.Encode(), values.Encode())
 		}

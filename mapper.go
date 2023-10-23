@@ -89,12 +89,12 @@ func (mapper *Mapper) Encode(src interface{}) (url.Values, error) {
 	var values = make(url.Values, len(dStruct.Fields))
 	for _, field := range dStruct.Fields {
 		var fieldValue = fieldByIndex(srcValue, field.Index)
-		encodeValue(field, fieldValue, values)
+		encodeField(field, fieldValue, values)
 	}
 	return values, nil
 }
 
-func encodeValue(field fieldDescriptor, fieldValue reflect.Value, values url.Values) {
+func encodeField(field fieldDescriptor, fieldValue reflect.Value, values url.Values) {
 	switch fieldValue.Kind() {
 	case reflect.String:
 		var nValue = fieldValue.String()
@@ -128,12 +128,12 @@ func encodeValue(field fieldDescriptor, fieldValue reflect.Value, values url.Val
 		values.Add(field.Tag, nValue)
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < fieldValue.Len(); i++ {
-			encodeValue(field, fieldValue.Index(i), values)
+			encodeField(field, fieldValue.Index(i), values)
 		}
 	}
 }
 
-func (mapper *Mapper) Bind(src map[string][]string, dst interface{}) error {
+func (mapper *Mapper) Decode(src map[string][]string, dst interface{}) error {
 	var dstValue = reflect.ValueOf(dst)
 	var dstType = dstValue.Type()
 
@@ -178,6 +178,10 @@ func (mapper *Mapper) Bind(src map[string][]string, dst interface{}) error {
 		}
 	}
 	return nil
+}
+
+func (mapper *Mapper) Bind(src map[string][]string, dst interface{}) error {
+	return mapper.Decode(src, dst)
 }
 
 func fieldByIndex(parent reflect.Value, index []int) reflect.Value {
