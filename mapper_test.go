@@ -235,3 +235,81 @@ func BenchmarkMapperUseDecoder(b *testing.B) {
 		}
 	}
 }
+
+func TestMapper_Encode(t *testing.T) {
+	var tests = []struct {
+		form  url.Values
+		human Human
+	}{
+		{
+			form:  url.Values{"name": {"name1"}, "age": {"10"}, "birthday": {"2023-07-05"}},
+			human: Human{Name: "name1", Age: 10, Birthday: "2023-07-05"},
+		},
+		{
+			form:  url.Values{"name": {"name2"}, "age": {"11"}, "birthday": {"2023-07-06"}},
+			human: Human{Name: "name2", Age: 11, Birthday: "2023-07-06"},
+		},
+		{
+			form:  url.Values{"name": {"name3"}, "age": {"0"}, "birthday": {"2023-07-07"}},
+			human: Human{Name: "name3", Age: 0, Birthday: "2023-07-07"},
+		},
+		{
+			form:  url.Values{"name": {"name4"}, "age": {"-1"}, "birthday": {"2023-07-08"}},
+			human: Human{Name: "name4", Age: -1, Birthday: "2023-07-08"},
+		},
+		{
+			form:  url.Values{"name": {"name5"}, "age": {"0"}, "birthday": {"2023-07-09"}},
+			human: Human{Name: "name5", Birthday: "2023-07-09"},
+		},
+	}
+
+	var m = nhttp.NewMapper("form")
+
+	for _, test := range tests {
+		values, err := m.Encode(test.human)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Log(values.Encode())
+		if values.Encode() != test.form.Encode() {
+			t.Fatalf("期望: %s, 实际: %s", test.form.Encode(), values.Encode())
+		}
+	}
+}
+
+func BenchmarkMapper_EncodeStruct(b *testing.B) {
+	var user = User{
+		Firstname: "Feng",
+		Lastname:  "Yang",
+		Email:     "yangfeng@qq.com",
+		Age:       10,
+	}
+	var m = nhttp.NewMapper("form")
+
+	b.ReportAllocs()
+	for n := 0; n < b.N; n++ {
+		if _, err := m.Encode(user); err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func BenchmarkMapper_EncodeStructParallel(b *testing.B) {
+	var user = User{
+		Firstname: "Feng",
+		Lastname:  "Yang",
+		Email:     "yangfeng@qq.com",
+		Age:       32,
+	}
+	var m = nhttp.NewMapper("form")
+
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := m.Encode(user); err != nil {
+				b.Error(err)
+			}
+		}
+	})
+}

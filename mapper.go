@@ -2,6 +2,7 @@ package nhttp
 
 import (
 	"errors"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -10,18 +11,20 @@ import (
 )
 
 const (
-	kNoTag   = "-"
-	kTag     = "form"
-	kDefault = "default"
+	kNoTag     = "-"
+	kTag       = "form"
+	kDefault   = "default"
+	kOmitempty = "omitempty"
 )
 
 type DecodeFunc func(value string) (interface{}, error)
 
 type fieldDescriptor struct {
-	Index   []int
-	Tag     string
-	Default []string
-	Decoder DecodeFunc
+	Index     []int
+	Tag       string
+	Default   []string
+	Omitempty bool
+	Decoder   DecodeFunc
 }
 
 type structDescriptor struct {
@@ -55,6 +58,79 @@ func (mapper *Mapper) UseDecoder(dstType reflect.Type, fn DecodeFunc) {
 		return
 	}
 	mapper.decoders[dstType] = fn
+}
+
+func (mapper *Mapper) Encode(src interface{}) (url.Values, error) {
+	var srcValue = reflect.ValueOf(src)
+	var srcType = srcValue.Type()
+
+	if srcType.Kind() == reflect.Ptr && srcValue.IsNil() {
+		return nil, errors.New("nil pointer passed to Encode")
+	}
+
+	for {
+		if srcValue.Kind() == reflect.Ptr && srcValue.IsNil() {
+			srcValue.Set(reflect.New(srcType.Elem()))
+		}
+
+		if srcValue.Kind() == reflect.Ptr {
+			srcValue = srcValue.Elem()
+			srcType = srcType.Elem()
+			continue
+		}
+		break
+	}
+
+	var dStruct, ok = mapper.getStructDescriptor(srcType)
+	if !ok {
+		dStruct = mapper.parseStructDescriptor(srcType)
+	}
+
+	var values = make(url.Values, len(dStruct.Fields))
+	for _, field := range dStruct.Fields {
+		var fieldValue = fieldByIndex(srcValue, field.Index)
+		encodeValue(field, fieldValue, values)
+	}
+	return values, nil
+}
+
+func encodeValue(field fieldDescriptor, fieldValue reflect.Value, values url.Values) {
+	switch fieldValue.Kind() {
+	case reflect.String:
+		var nValue = fieldValue.String()
+		if field.Omitempty && nValue == "" {
+			return
+		}
+		values.Add(field.Tag, nValue)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		var iValue = fieldValue.Int()
+		if field.Omitempty && iValue == 0 {
+			return
+		}
+		var nValue = strconv.FormatInt(iValue, 10)
+		values.Add(field.Tag, nValue)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		var iValue = fieldValue.Uint()
+		if field.Omitempty && iValue == 0 {
+			return
+		}
+		var nValue = strconv.FormatUint(iValue, 10)
+		values.Add(field.Tag, nValue)
+	case reflect.Float32, reflect.Float64:
+		var iValue = fieldValue.Float()
+		if field.Omitempty && iValue == 0 {
+			return
+		}
+		var nValue = strconv.FormatFloat(iValue, 'g', -1, fieldValue.Type().Bits())
+		values.Add(field.Tag, nValue)
+	case reflect.Bool:
+		var nValue = strconv.FormatBool(fieldValue.Bool())
+		values.Add(field.Tag, nValue)
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < fieldValue.Len(); i++ {
+			encodeValue(field, fieldValue.Index(i), values)
+		}
+	}
 }
 
 func (mapper *Mapper) Bind(src map[string][]string, dst interface{}) error {
@@ -213,6 +289,8 @@ func (mapper *Mapper) parseStructDescriptor(dstType reflect.Type) structDescript
 				switch key {
 				case kDefault:
 					dField.Default = strings.Split(value, ";")
+				case kOmitempty:
+					dField.Omitempty = true
 				}
 			}
 
