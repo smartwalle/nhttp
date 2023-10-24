@@ -90,12 +90,12 @@ func (mapper *Mapper) Encode(src interface{}) (url.Values, error) {
 	var values = make(url.Values, len(dStruct.Fields))
 	for _, field := range dStruct.Fields {
 		var fieldValue = fieldByIndex(srcValue, field.Index)
-		encode(field, fieldValue, values)
+		encodeValue(field, fieldValue, values)
 	}
 	return values, nil
 }
 
-func encode(field fieldDescriptor, fieldValue reflect.Value, values url.Values) {
+func encodeValue(field fieldDescriptor, fieldValue reflect.Value, values url.Values) {
 	switch fieldValue.Kind() {
 	case reflect.String:
 		var nValue = fieldValue.String()
@@ -129,7 +129,7 @@ func encode(field fieldDescriptor, fieldValue reflect.Value, values url.Values) 
 		values.Add(field.Tag, nValue)
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < fieldValue.Len(); i++ {
-			encode(field, fieldValue.Index(i), values)
+			encodeValue(field, fieldValue.Index(i), values)
 		}
 	}
 }
@@ -165,8 +165,8 @@ func (mapper *Mapper) Decode(src map[string][]string, dst interface{}) error {
 	}
 
 	for _, field := range dStruct.Fields {
-		var values, exists = src[field.Tag]
-		if !exists {
+		var values, found = src[field.Tag]
+		if !found {
 			if len(field.Default) == 0 {
 				continue
 			}
@@ -174,7 +174,7 @@ func (mapper *Mapper) Decode(src map[string][]string, dst interface{}) error {
 		}
 
 		var fieldValue = fieldByIndex(dstValue, field.Index)
-		if err := mapValues(fieldValue, field.Decoder, values); err != nil {
+		if err := decodeValues(fieldValue, field.Decoder, values); err != nil {
 			return err
 		}
 	}
@@ -323,55 +323,55 @@ func head(str, sep string) (head string, tail string) {
 	return str[:idx], str[idx+len(sep):]
 }
 
-func mapValues(field reflect.Value, decoder DecodeFunc, values []string) error {
+func decodeValues(field reflect.Value, decoder DecodeFunc, values []string) error {
 	if field.Kind() == reflect.Slice {
 		var vLen = len(values)
 		var s = reflect.MakeSlice(field.Type(), vLen, vLen)
 		for i := 0; i < vLen; i++ {
-			if err := mapValue(s.Index(i), decoder, values[i]); err != nil {
+			if err := decodeValue(s.Index(i), decoder, values[i]); err != nil {
 				return err
 			}
 		}
 		field.Set(s)
 		return nil
 	}
-	return mapValue(field, decoder, values[0])
+	return decodeValue(field, decoder, values[0])
 }
 
-func mapValue(field reflect.Value, decoder DecodeFunc, value string) error {
+func decodeValue(field reflect.Value, decoder DecodeFunc, value string) error {
 	switch field.Kind() {
 	case reflect.Interface:
 		field.Set(reflect.ValueOf(value))
 	case reflect.String:
 		field.SetString(value)
 	case reflect.Int:
-		return mapInt(field, value, 0)
+		return decodeInt(field, value, 0)
 	case reflect.Int8:
-		return mapInt(field, value, 8)
+		return decodeInt(field, value, 8)
 	case reflect.Int16:
-		return mapInt(field, value, 16)
+		return decodeInt(field, value, 16)
 	case reflect.Int32:
-		return mapInt(field, value, 32)
+		return decodeInt(field, value, 32)
 	case reflect.Int64:
-		return mapInt(field, value, 64)
+		return decodeInt(field, value, 64)
 	case reflect.Uint:
-		return mapUint(field, value, 0)
+		return decodeUint(field, value, 0)
 	case reflect.Uint8:
-		return mapUint(field, value, 8)
+		return decodeUint(field, value, 8)
 	case reflect.Uint16:
-		return mapUint(field, value, 16)
+		return decodeUint(field, value, 16)
 	case reflect.Uint32:
-		return mapUint(field, value, 32)
+		return decodeUint(field, value, 32)
 	case reflect.Uint64:
-		return mapUint(field, value, 64)
+		return decodeUint(field, value, 64)
 	case reflect.Uintptr:
-		return mapUint(field, value, 64)
+		return decodeUint(field, value, 64)
 	case reflect.Float32:
-		return mapFloat(field, value, 32)
+		return decodeFloat(field, value, 32)
 	case reflect.Float64:
-		return mapFloat(field, value, 64)
+		return decodeFloat(field, value, 64)
 	case reflect.Bool:
-		return mapBool(field, value)
+		return decodeBool(field, value)
 	default:
 		if decoder != nil {
 			var nValue, err = decoder(value)
@@ -381,12 +381,12 @@ func mapValue(field reflect.Value, decoder DecodeFunc, value string) error {
 			field.Set(reflect.ValueOf(nValue))
 			return nil
 		}
-		return errors.New("cannot unmarshal into " + field.Type().String())
+		return errors.New("cannot decode into " + field.Type().String())
 	}
 	return nil
 }
 
-func mapInt(field reflect.Value, value string, bitSize int) error {
+func decodeInt(field reflect.Value, value string, bitSize int) error {
 	if value == "" {
 		field.SetInt(0)
 		return nil
@@ -399,7 +399,7 @@ func mapInt(field reflect.Value, value string, bitSize int) error {
 	return nil
 }
 
-func mapUint(field reflect.Value, value string, bitSize int) error {
+func decodeUint(field reflect.Value, value string, bitSize int) error {
 	if value == "" {
 		field.SetUint(0)
 		return nil
@@ -412,20 +412,20 @@ func mapUint(field reflect.Value, value string, bitSize int) error {
 	return nil
 }
 
-func mapFloat(field reflect.Value, value string, bitSize int) error {
+func decodeFloat(field reflect.Value, value string, bitSize int) error {
 	if value == "" {
 		field.SetFloat(0)
 		return nil
 	}
-	intValue, err := strconv.ParseFloat(value, bitSize)
+	floatValue, err := strconv.ParseFloat(value, bitSize)
 	if err != nil {
 		return err
 	}
-	field.SetFloat(intValue)
+	field.SetFloat(floatValue)
 	return nil
 }
 
-func mapBool(field reflect.Value, value string) error {
+func decodeBool(field reflect.Value, value string) error {
 	if value == "" {
 		field.SetBool(false)
 		return nil
