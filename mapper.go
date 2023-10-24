@@ -66,7 +66,7 @@ func (mapper *Mapper) Encode(src interface{}) (url.Values, error) {
 	var srcType = srcValue.Type()
 
 	if srcType.Kind() == reflect.Ptr && srcValue.IsNil() {
-		return nil, errors.New("nil pointer passed to Encode")
+		return nil, errors.New("nil pointer passed")
 	}
 
 	for {
@@ -139,11 +139,11 @@ func (mapper *Mapper) Decode(src map[string][]string, dst interface{}) error {
 	var dstType = dstValue.Type()
 
 	if dstValue.Kind() != reflect.Ptr {
-		return errors.New("must pass a pointer to Bind")
+		return errors.New("must pass a pointer")
 	}
 
 	if dstValue.IsNil() {
-		return errors.New("nil pointer passed to Bind")
+		return errors.New("nil pointer passed")
 	}
 
 	for {
